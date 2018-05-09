@@ -1,0 +1,159 @@
+---
+title: "Machine Learninig - Quiz4"
+author: "Antonio Marquez Palacios"
+date: "March 3, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Question 1
+
+Set the variable y to be a factor variable in both the training and test set. Then set the seed to 33833. Fit (1) a random forest predictor relating the factor variable y to the remaining variables and (2) a boosted predictor using the "gbm" method. Fit these both with the train() command in the caret package.
+
+What are the accuracies for the two approaches on the test data set? What is the accuracy among the test set samples where the two methods agree? 
+
+```{r echo=FALSE, warning=FALSE}
+library(ElemStatLearn)
+library(caret)
+library(gbm)
+library(AppliedPredictiveModeling)
+library(elasticnet)
+library(lubridate)
+library(forecast)
+```
+
+
+```{r echo=TRUE}
+packageVersion("ElemStatLearn")
+packageVersion("caret")
+packageVersion("gbm")
+packageVersion("AppliedPredictiveModeling")
+
+data(vowel.train)
+data(vowel.test)
+
+vowel.train$y <- as.factor(vowel.train$y)
+vowel.test$y <- as.factor(vowel.test$y)
+set.seed(33833)
+```
+
+(1) Fit a random forest predictor relating the factor variable y to the remaining variables. This may take sometime, patient is required...
+
+```{r echo=TRUE }
+modRf <- train(y ~ ., method="rf", data=vowel.train, trControl=trainControl(method="cv"), number=3)
+```
+
+(2) Fit a boosted predictor using the "gbm" method
+```{r echo=TRUE }
+modBoost <- train(y ~ ., method="gbm", data=vowel.train, verbose=FALSE)
+```
+
+Create the predictors with test data set:
+```{r echo=TRUE }
+pred1 <- predict(modRf, vowel.test)
+pred2 <- predict(modBoost, vowel.test)
+predDF <- data.frame(pred1, pred2, y=vowel.test$y)
+```
+
+To get accuracy, let´s build the confusion matrices for each. For the match accuracy
+
+```{r echo=TRUE }
+accRf     <- confusionMatrix(vowel.test$y, pred1)$overall[1]
+accBoost  <- confusionMatrix(vowel.test$y, pred2)$overall[1]
+accMatch  <- sum(as.numeric(pred1[predDF$pred1 == predDF$pred2] == predDF$y[predDF$pred1 == predDF$pred2]))/sum(as.numeric(predDF$pred1==predDF$pred2))
+
+data.frame(accuracyRF = accRf, accuracyBoos = accBoost, matchAccuracy=accMatch)
+
+```
+
+## Question 2
+
+Load the Alzheimer's data using the following commands:
+```{r echo=TRUE}
+set.seed(3433)
+data(AlzheimerDisease)
+adData    <- data.frame(diagnosis,predictors)
+inTrain   <- createDataPartition(adData$diagnosis, p = 3/4)[[1]]
+training  <- adData[ inTrain,]
+testing   <- adData[-inTrain,]
+set.seed(62433)
+```
+Create the Random Forest Model (this may take some minutes...)
+```{r echo=TRUE}
+modRf     <- train(diagnosis ~ ., method="rf", data=training, trControl=trainControl(method="cv"), number=3)
+```
+Create the Boost Trees model
+```{r echo=TRUE}
+modBoost  <- train(diagnosis ~ ., method="gbm", data=training, verbose=FALSE)
+```
+Create the Linear Discriminal Analysis model:
+```{r echo=TRUE}
+modlda    <- train(diagnosis ~ ., method="lda", data=training)
+```
+Predict over the three models and get their corresponding accuracy:
+
+```{r echo=TRUE}
+predRf      <- predict(modRf, testing)
+predBoost   <- predict(modBoost, testing)
+predLda     <- predict(modlda, testing)
+
+stackedDF   <- data.frame(predRf, predBoost, predLda, diagnosis=testing$diagnosis)
+stackedMod  <- train(diagnosis ~ ., method="rf", data=stackedDF)
+stackedPred <- predict(stackedMod, stackedDF)
+
+accRf     <- confusionMatrix(testing$diagnosis, predRf)$overall[1]
+accBoost  <- confusionMatrix(testing$diagnosis, predBoost)$overall[1]
+accLda    <- confusionMatrix(testing$diagnosis, predLda)$overall[1]
+stackedAcc<- confusionMatrix(testing$diagnosis, stackedPred)$overall[1]
+
+data.frame(accRf, accBoost, accLda, stackedAcc)
+
+```
+It can be seen that accuracies for Random Forest = Boosted Trees < LDA < Stacked 
+So Stacked is the best of all three.
+
+## Question 3
+
+Load the concrete data with the commands:
+```{r echo=TRUE}
+set.seed(3523)
+data(concrete)
+inTrain   <- createDataPartition(concrete$CompressiveStrength, p = 3/4)[[1]]
+training  <- concrete[ inTrain,]
+testing   <- concrete[-inTrain,]
+set.seed(233)
+```
+
+Fit a LASSO Model. For the next processing, will use elasticnet package/plot.enet
+```{r echo=TRUE}
+modLasso  <- train(CompressiveStrength ~ ., method="lasso", data=training)
+
+plot.enet(modLasso$finalModel, xvar="penalty", use.color = T)
+
+```
+It can be seen that Cement is the very last variable to shrink to zero as the penalties are applied.
+
+## Question 4
+Load the data on the number of visitors to the instructors blog from here:
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/gaData.csv
+
+Fit a model using the bats() function in the forecast package to the training time series. Then forecast this model for the remaining time points. For how many of the testing points is the true value within the 95% prediction interval bounds?
+
+```{r echo = FALSE}
+fileLocation <- "C:/datascience/practical machine learning/gaData.csv"
+```
+
+```{r echo=TRUE}
+
+dat       <- read.csv(fileLocation)
+training  <- dat[year(dat$date) < 2012,]
+testing   <- dat[(year(dat$date)) > 2011,]
+tstrain   <- ts(training$visitsTumblr)
+
+
+
+```

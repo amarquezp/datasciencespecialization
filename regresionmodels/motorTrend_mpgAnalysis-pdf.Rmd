@@ -1,0 +1,144 @@
+---
+title: "Regression Models Course Project"
+author: "Antonio Marquez Palacios"
+date: "January 30, 2018"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(ggplot2)
+library(grDevices)
+library(gridExtra)
+library(stats)
+library(car)
+```
+## Executive Summary
+A Regression Model Analyses were made on the Motor Trend data exposed in 1974, where it was found Manual Transmission gives more Miles Per Gallon than Automatic. Then the model was extended to include other regressors that were demonstrated are correlated to the transmission mode (number of cylinders and weight) when meassuring the miles per gallon consumption. Results show that transmission by itself are not deterministic on the evaluation for mpg, but considering together number of cylinders and weight are, having a better consumption (more miles per gallon) with less cylinders and weight.
+
+## Exploratory Analyses
+
+```{r echo=FALSE}
+
+mtcars <- transform(mtcars, transmission = ifelse(am==0, "Automatic", "Manual"))
+str(mtcars)
+summary(mtcars)
+head(mtcars)
+
+```
+
+The following plots show how the miles per gallon are related to the transmission mode. It can be seen how the automatic mode gives fewer mpg than manual.
+
+
+```{r echo=FALSE}
+gbp_mpg_am <- ggplot() + geom_boxplot(data=mtcars, aes(x=transmission, y=mpg, fill=transmission)) + xlab("Transmission") + ylab("Miles per gallon")
+
+gsp_mpg_am <- ggplot(mtcars) + geom_point(shape=1) + aes(x=am, y=mpg) + geom_smooth(method=lm, color="red") + xlab("Transmission") + ylab("Miles per gallon")
+
+grid.arrange(gbp_mpg_am, gsp_mpg_am, ncol=2)
+
+```
+
+Let's see how these are related by doing the initial Linear Model as
+$$Y = \beta_0 + \beta_1{X}$$ 
+
+where Y is the outcome mpg and X the transmission mode
+
+From the above plot it can be seen there is a positive slope for our $\beta_1$ coefficient. Let's explore more deeply this model in the following section.
+
+## Regresion model for the Miles per Gallon consumption against the Transmission mode
+
+```{r echo=TRUE}
+fit <- lm(mpg ~ transmission, data=mtcars)
+coefficients(fit)
+```
+
+## Residuals  Analisys
+
+```{r echo=FALSE}
+resid(fit)
+```
+Let's look if there is any outliers calculating the dfbetas:
+$$\hat b_k - \hat b_{ki} / \sqrt(SE_iC_{kk})$$
+```{r echo=FALSE}
+round(dfbetas(fit)[1:32, 2],3)
+```
+
+There are multiple values that double others, so lets do a hatvalues test to verify:
+```{r echo=FALSE}
+round(hatvalues(fit)[1:32],3)
+```
+
+As noted, hatvalues is pretty normal and does not show any potential outliers in out model. Clearly it can be seen no outliers are impacting the model. Finally let's plot the residuals.
+
+```{r echo=FALSE}
+
+par(mfrow=c(2,2))
+plot(fit)
+```
+
+
+## Fitting multiple models
+
+Let's extend the linear regression model to include more regressors:
+$$Y = \beta_0 + \beta_1{X_1} + \beta_2{X_2} $$
+
+$$Y = \beta_0 + \beta_1{X} + \beta_2{X_2} + \beta_3{X_3} $$
+
+where $$X_1=am, X_2=cyl, X_3=wt$$, and get the Variance Inflation Factor (VIF) of each:
+```{r echo=FALSE}
+fit2 <- lm(mpg ~ transmission + cyl, data=mtcars)
+fit3 <- lm(mpg ~ transmission + cyl + wt, data=mtcars)
+vif2 <- vif(fit2)
+vif3 <- vif(fit3)
+
+vif2
+vif3
+
+```
+
+The VIF data shows there is a relationship between cyl and weight on the miles per gallon outcome, see how these behave separately:
+
+```{r echo=FALSE}
+gsp_mpg_cyl <- ggplot(mtcars) + geom_point(shape=1) + aes(x=cyl, y=mpg) + geom_smooth(method=lm, color="red") + xlab("Cylinders") + ylab("Miles per gallon")
+gsp_mpg_wt <- ggplot(mtcars) + geom_point(shape=1) + aes(x=wt, y=mpg) + geom_smooth(method=lm, color="red") + xlab("Weight") + ylab("Miles per gallon")
+
+gsp_mpg_am <- ggplot(mtcars) + geom_point(shape=1) + aes(x=am, y=mpg) + geom_smooth(method=lm, color="red") + xlab("Transmission") + ylab("Miles per gallon")
+
+grid.arrange(gsp_mpg_cyl, gsp_mpg_wt, gsp_mpg_am, ncol=3)
+
+```
+
+Now, consider out model with the three regressors
+
+```{r echo=FALSE}
+summary(fit3)
+lm_fit <- lm(mpg ~ transmission + cyl + wt, data=mtcars)
+predicted_df <- data.frame(mpg_pred = predict(lm_fit, mtcars), transmission = mtcars$transmission)
+ggplot(data=mtcars, aes(x=transmission, y = mpg)) + geom_point(color="blue") + geom_line(color="green", data= predicted_df, aes(x=transmission, y = mpg_pred))
+```
+
+From the plot above it can be seen that Miles per Gallon is greater for Manual Transmissions than Automatic, even including other factors such as Number of Cylinders and the Weight of the car
+
+## Appendix
+
+### About data set
+Motor Trend 1974 fuel comparison is available at the mtcars data frame. From the ?mtcars reference page, the following can be remarked:
+
+_mtcars_ is a data frame with 32 observations on 11 variables with the following structure
+
+where the column descriptions are: 
+
+[, 1]	 mpg	 Miles/(US) gallon  
+[, 2]	 cyl	 Number of cylinders  
+[, 3]	 disp	 Displacement (cu.in.)  
+[, 4]	 hp	 Gross horsepower  
+[, 5]	 drat	 Rear axle ratio  
+[, 6]	 wt	 Weight (1000 lbs)  
+[, 7]	 qsec	 1/4 mile time  
+[, 8]	 vs	 V/S  
+[, 9]	 am	 Transmission (0 = automatic, 1 = manual)  
+[,10]	 gear	 Number of forward gears  
+[,11]	 carb	 Number of carburetors  
+[,12]  Transmission Mode. Column created based on column 9, for graphics and plotting purposes on this project

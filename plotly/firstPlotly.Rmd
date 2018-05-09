@@ -1,0 +1,46 @@
+---
+title: "Plotly"
+author: "Antonio Marquez Palacios"
+date: "March 28, 2018"
+output: html_document
+---
+
+```{r, eval=FALSE}
+library(plotly)
+plot_ly(mtcars, x = mtcars$wt, y = mtcars$mpg,  mode = "markers", color=mtcars$cyl, size = mtcars$hp)
+
+set.seed(2018-3-28)
+temp <- rnorm(100, mean = 40, sd=4)
+pressue <- rnorm(100)
+dtime <- 1:100
+plot_ly(x=temp, y=pressue, z=dtime, type = "scatter3d", mode= "markers", color=temp)
+
+### Stocks example
+
+library(tidyr)
+library(dplyr)
+data("EuStockMarkets")
+
+stocks <- as.data.frame(EuStockMarkets) %>% gather(index, price) %>% mutate(time = rep(time(EuStockMarkets),4))
+
+plot_ly(stocks, x=stocks$time, y=stocks$price, color=stocks$index)
+
+
+## Choropleth Maps
+
+state_pop <- data.frame(State = state.abb, Pop = as.vector(state.x77[,1]))
+state_pop$hover <- with(state_pop, paste(State, '<br>', "Population: ", Pop))
+
+borders <- list(color = toRGB("red"))
+
+map_options <- list(
+                scope = 'usa',
+                projection = list(type = 'albers usa'),
+                showlakes = TRUE,
+                lakecolor = toRGB('white')
+              )
+
+plot_ly(state_pop, z=state_pop$Pop, text=state_pop$hover, locations= state_pop$State, type='choropleth', locationmode= 'USA-states', color=state_pop$Pop, colors= 'Blues', marker=list(line= borders)) %>%
+  layout(title = 'US Population in 1975', geo=map_options)
+
+```

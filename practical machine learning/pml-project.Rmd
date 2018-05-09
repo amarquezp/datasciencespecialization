@@ -1,0 +1,102 @@
+---
+title: "Practical Machine Learning - A prediction algorithm for Human Activity Recognition  based on quantified hips possition and acceleration (class E) "
+author: "Antonio Marquez Palacios"
+date: "March 4, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r echo=FALSE}
+library(caret)
+library(randomForest)
+setwd("C:/datascience/practical machine learning/")
+```
+
+## Abstract
+
+This document is a course project for the Practical Machine Learning course as part of Coursera Data Science Specialization. 
+Information about the course can be found at https://www.coursera.org/learn/practical-machine-learning/
+
+
+## Synosis
+
+"Human Activity Recognition - HAR - has emerged as a key research area in the last years and is gaining increasing attention by the pervasive computing research community (see picture below, that illustrates the increasing number of publications in HAR with wearable accelerometers), especially for the development of context-aware systems. There are many potential applications for HAR, like: elderly monitoring, life log systems for monitoring energy expenditure and for supporting weight-loss programs, and digital assistants for weight lifting exercises" - http://web.archive.org/web/20161224072740/http:/groupware.les.inf.puc-rio.br/har : 
+
+In this project, a mathematical model for machine learning using Random Forests is proposed to predict how well the exercises are done, based on Class E classification.
+
+
+## Loading and setting the data
+
+Data for this project can be found
+
+Training data set: https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+Testing data set: https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+An initial exploratory analysis reveals some columns have NA/NULL/empty values in their majority observations; also the data is not dependent on time, so  will remove them to have a cleaner analysis
+
+```{r echo=TRUE}
+# Load the set Data Set
+set.seed(33878)
+trainingFilePath  <- "pml-training.csv"
+testingFilePath   <- "pml-testing.csv"
+
+pmlTrainDS        <- read.csv(trainingFilePath)
+pmlTestDS         <- read.csv(testingFilePath)
+
+validColumns      <- c(2, 6:11, 37:49, 60:68, 84:86, 102, 113:124,140,151:160 )
+# Remove those columns that have NA in their majority observations
+filteredTrainDS   <- pmlTrainDS[, validColumns]
+filteredTestDS    <- pmlTestDS[, validColumns]
+
+# Set a value to be the outcome of the models:
+inTrain   <- createDataPartition(filteredTrainDS$classe, p=0.7, list=FALSE)
+training  <- filteredTrainDS[inTrain, ]
+testing   <- filteredTrainDS[-inTrain,]
+
+totalCol <- which(grepl("^total", names(training), ignore.case=FALSE))
+
+featurePlot(x= training[, totalCol], y=training$classe, pch=19, plot="pairs")
+```
+
+## Fitting a Model and Cross Validation
+Random Forest is the selected model because of its accuracy. Calculating Random Forest will take some time.
+We will use Cross-Validation algorithm included in caret package.
+
+```{r echo=TRUE}
+modRf   <- train(classe ~ ., method="rf", trControl=trainControl(method="cv", number=4), data=training)
+plot(modRf, xlab="predictors", main="Random Forest Model")
+
+plot(modRf$finalModel, main="Random Forest's Final Model")
+```
+
+```{r echo=TRUE} 
+predRf  <- predict(modRf, testing)
+summary(predRf)
+
+# Accuracy:
+accuracy      <- modRf$results[3,2]
+
+# Out Of Sample Error:
+ooSampleError <- 1 - accuracy
+
+data.frame(accuracy=accuracy, OutSampleError=ooSampleError)
+
+```
+
+
+## Testing the Model with 20 use cases
+Once trained, the model was tested with the following test cases (pml-testing.csv) with the following results:
+
+```{r echo=FALSE}
+predRfTest <- predict(modRf, filteredTestDS)
+predRfTest
+```
+
+Confirming the accuracy, all were the expected values.
+
+## Conclusion
+
+Random Forest model predicted 100% of the test cases, thought it is time consuming
