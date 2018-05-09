@@ -1,0 +1,62 @@
+---
+title: "Basic Inferential Data Analysis for ToothGrowth Data Set: The Effect of Vitamin C on Tooth Growth in Guinea Pigs"
+author: "Antonio Marquez Palacios"
+date: "December 24, 2017"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Synopsis
+
+The response is the length of odontoblasts (cells responsible for tooth growth) in 60 guinea pigs. Each animal received one of three dose levels of vitamin C (0.5, 1, and 2 mg/day) by one of two delivery methods, (orange juice or ascorbic acid (a form of vitamin C and coded as VC).
+
+## Exploratory analysis
+
+To Load the ToothGrowth data set, first import the datasets library
+```{r}
+library(datasets)
+library(ggplot2)
+```
+
+Now let's proceed with some basic exploratory data analysys. Let's do a summary:
+
+```{r}
+summary(ToothGrowth)
+```
+From summary it can be seen the following:
+dose range is [0.5,2.0]. Will use these values for confidence intervals. Note here that values with 1.5 are not present in the dose observations
+len range is [4.20, 33.90]
+we know that len is a function of dose and supp len(dose,supp), so let's see how they relate in a plot:
+
+```{r}
+ggplot(ToothGrowth, aes(x=factor(dose), y=len, fill=factor(dose))) + geom_boxplot() + facet_wrap(~supp)+xlab("dose") + ylab("len") + ggtitle("Tooth Growth") + labs(fill="dose")
+	
+```
+
+## Hypothesis testing
+
+To do the Hypothesis testing, lets assume the following intervals for dose
+dose = [0.5, 1.0], dose=[1.0, 2.0], dose=[0.5, 2.0]
+
+```{r}
+ToothGrowth_05_10 <- ToothGrowth[ToothGrowth$dose %in% c(0.5,1.0),]
+ToothGrowth_10_20 <- ToothGrowth[ToothGrowth$dose %in% c(1.0,2.0),]
+ToothGrowth_05_20 <- ToothGrowth[ToothGrowth$dose %in% c(0.5,2.0),]
+```
+
+and do the test for each interval:
+```{r}
+t.test(data=ToothGrowth_05_10, len ~ dose, paired=FALSE)
+t.test(data=ToothGrowth_10_20, len ~ dose, paired=FALSE)
+t.test(data=ToothGrowth_05_20, len ~ dose, paired=FALSE)
+```
+
+
+## Conclusions
+
+1. Providing a supplement do help on tooth growth, as it can be seen in the box plot above. 
+2. Supplement type is not a factor on tooth growth, since we can observe growth in both groups
+

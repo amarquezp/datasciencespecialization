@@ -1,0 +1,153 @@
+---
+title: "NOAA Storm Database Data Analysis"
+author: "Antonio Marquez Palacios"
+date: "November 11, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Synopsis
+
+Storms and other severe weather events can cause both public health and economic problems for communities and municipalities. Many severe events can result in fatalities, injuries, and property damage, and preventing such outcomes to the extent possible is a key concern.
+
+As part of Data Science Specialization's Reproducible Research Project 2 Assignment, this project will explore the U.S. NOAA's storm database. This database tracks characteristics of major storms and weather events in the United States, including when and where they occur, as well as estimates of any fatalities, injuries, and property damage.
+
+
+## Data Processing
+
+NOAA's Storm database is available at the following URL location: 
+
+https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2
+
+For information about how data is collected and description about the variables, please refer to https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf
+
+
+### Load the data:
+
+The data is compressed in a bz2 file, but can be read directly from it using the read.csv function. This will take some time to load:
+
+```{r}
+FILENAME      <- "repdata%2Fdata%2FStormData.csv.bz2"
+NOAAS_DT      <- read.csv(FILENAME, header = TRUE, sep = ",",  quote = "\"")
+```
+
+Once loaded, an initial analysis at how it looks like will help to determine if data transformations are required, so let's do a summary first:
+```{r}
+summary(NOAAS_DT)
+```
+
+Very verbose output is quite complicated to distinguish for any special processing on the data so try looking at the structure of the dataset:
+```{r}
+str(NOAAS_DT)
+```
+
+From the output abotve it can be seen that no special transformations are required to prepare data, so continue with the analysis.
+
+This analysis is focused to answer the following questions:
+
+1. Across the United States, which types of events (as indicated in the EVTYPE variable) are most harmful with respect to population health?
+
+2. Across the United States, which types of events have the greatest economic consequences?
+
+The following sections will cover details about the data analysis required find the answers
+
+### 1. Across the United States, which types of events (as indicated in the EVTYPE variable) are most harmful with respect to population health?
+
+Consider population-health harm events those which end with fatalities or injuries, so in order to answer this question, it is required to calculate the total number of fatalities and injuries per event. 
+
+Lets sum the fatalities and injuries in a new column called total_victims:
+
+```{r warning=FALSE}
+library(dplyr)
+library(grDevices)
+library(ggplot2)
+
+NOAAS_DT$TOTAL_VICTIMS <- NOAAS_DT$FATALITIES + NOAAS_DT$INJURIES
+
+```
+
+Now, it is required to group by event the total number of victims, so that way it can be seen which
+event is the most harmful. To achieve this, the use of the group_by dyplr's function pipelined with summarise will do the work. After that let's show the 10 most harmful events 
+
+```{r warning=FALSE}
+# The trick is done by grouping by Event Type and do a summary counting the number of victims
+noaas_evtype_victims <- NOAAS_DT %>% group_by(EVTYPE) %>% summarise(VICTIMS = sum(TOTAL_VICTIMS)) %>% arrange(desc(VICTIMS))
+
+#get the top ten most harmful events
+noaas_evtype_victims <- noaas_evtype_victims[1:10, ]
+
+ggplot(noaas_evtype_victims, aes(x=EVTYPE, y=VICTIMS)) + geom_bar(stat="identity", aes(fill=EVTYPE)) + scale_x_discrete(labels=c())
+
+```
+
+The plot above clearly shows that Tornados lead more victims with a huge difference to other events
+
+### 2. Across the United States, which types of events have the greatest economic consequences?
+
+From the structure of the NOAAS Dataset it can be seen that damages are divided into 2 big categories:
+##### Property Damages: Those ocurred to buildings, insfrastructures supporting devices. Described in NOAAS Dataset PROPDMG variable.
+##### Cultive Damages: Those occurred aggricultural activities. Described in NOAAS Dataset CROPDMG variable
+
+Additionally, NOAAS Dataset does specify damages magnitude using an acronym:
+h: 100 factor
+K: 1000 factor
+M: 1000000 factor
+B: 1000000000 factor
+
+NOAAS Dataset PROPDMGEXP and NOAAS Dataset CROPDMGEXP specify the magnitude for each observation accordingly.
+
+Again, grouping is the key task to present the data for the given question. The following code spippet does the work:
+
+```{r}
+
+#define the factors:
+H_FACTOR <- 100
+K_FACTOR <- 1000
+M_FACTOR <- K_FACTOR * K_FACTOR
+B_FACTOR <- M_FACTOR * K_FACTOR
+
+NOAAS_DT$PROPDMG[NOAAS_DT$PROPDMGEXP == ""] <- NOAAS_DT$PROPDMG[NOAAS_DT$PROPDMGEXP == ""] * 1
+NOAAS_DT$PROPDMG[NOAAS_DT$PROPDMGEXP == "0"] <- NOAAS_DT$PROPDMG[NOAAS_DT$PROPDMGEXP == "0"] * 1
+NOAAS_DT$PROPDMG[NOAAS_DT$PROPDMGEXP == "1"] <- NOAAS_DT$PROPDMG[NOAAS_DT$PROPDMGEXP == "1"] * 1
+NOAAS_DT$PROPDMG[NOAAS_DT$PROPDMGEXP == "2"] <- NOAAS_DT$PROPDMG[NOAAS_DT$PROPDMGEXP == "2"] * 1
+NOAAS_DT$PROPDMG[NOAAS_DT$PROPDMGEXP == "3"] <- NOAAS_DT$PROPDMG[NOAAS_DT$PROPDMGEXP == "3"] * 1
+NOAAS_DT$PROPDMG[NOAAS_DT$PROPDMGEXP == "4"] <- NOAAS_DT$PROPDMG[NOAAS_DT$PROPDMGEXP == "4"] * 1
+NOAAS_DT$PROPDMG[NOAAS_DT$PROPDMGEXP == "5"] <- NOAAS_DT$PROPDMG[NOAAS_DT$PROPDMGEXP == "5"] * 1
+NOAAS_DT$PROPDMG[NOAAS_DT$PROPDMGEXP == "6"] <- NOAAS_DT$PROPDMG[NOAAS_DT$PROPDMGEXP == "6"] * 1
+NOAAS_DT$PROPDMG[NOAAS_DT$PROPDMGEXP == "7"] <- NOAAS_DT$PROPDMG[NOAAS_DT$PROPDMGEXP == "7"] * 1
+NOAAS_DT$PROPDMG[NOAAS_DT$PROPDMGEXP == "8"] <- NOAAS_DT$PROPDMG[NOAAS_DT$PROPDMGEXP == "8"] * 1
+NOAAS_DT$PROPDMG[NOAAS_DT$PROPDMGEXP == "+"] <- NOAAS_DT$PROPDMG[NOAAS_DT$PROPDMGEXP == "+"] * 1
+NOAAS_DT$PROPDMG[NOAAS_DT$PROPDMGEXP == "8"] <- NOAAS_DT$PROPDMG[NOAAS_DT$PROPDMGEXP == "-"] * 1
+NOAAS_DT$PROPDMG[NOAAS_DT$PROPDMGEXP == "K"] <- NOAAS_DT$PROPDMG[NOAAS_DT$PROPDMGEXP == "K"] * K_FACTOR
+NOAAS_DT$PROPDMG[NOAAS_DT$PROPDMGEXP == "M"] <- NOAAS_DT$PROPDMG[NOAAS_DT$PROPDMGEXP == "M"] * M_FACTOR
+NOAAS_DT$PROPDMG[NOAAS_DT$PROPDMGEXP == "B"] <- NOAAS_DT$PROPDMG[NOAAS_DT$PROPDMGEXP == "B"] * B_FACTOR
+NOAAS_DT$PROPDMG[NOAAS_DT$PROPDMGEXP == "h"] <- NOAAS_DT$PROPDMG[NOAAS_DT$PROPDMGEXP == "h"] * H_FACTOR
+
+
+NOAAS_DT$CROPDMG[NOAAS_DT$CROPDMGEXP == ""] <- NOAAS_DT$CROPDMG[NOAAS_DT$CROPDMGEXP == ""] * 1
+NOAAS_DT$CROPDMG[NOAAS_DT$CROPDMGEXP == "0"] <- NOAAS_DT$CROPDMG[NOAAS_DT$CROPDMGEXP == "0"] * 1
+NOAAS_DT$CROPDMG[NOAAS_DT$CROPDMGEXP == "2"] <- NOAAS_DT$CROPDMG[NOAAS_DT$CROPDMGEXP == "2"] * 1
+NOAAS_DT$CROPDMG[NOAAS_DT$CROPDMGEXP == "?"] <- NOAAS_DT$CROPDMG[NOAAS_DT$CROPDMGEXP == "?"] * 1
+NOAAS_DT$CROPDMG[NOAAS_DT$CROPDMGEXP == "B"] <- NOAAS_DT$CROPDMG[NOAAS_DT$CROPDMGEXP == "B"] * B_FACTOR
+NOAAS_DT$CROPDMG[NOAAS_DT$CROPDMGEXP == "K"] <- NOAAS_DT$CROPDMG[NOAAS_DT$CROPDMGEXP == "K"] * K_FACTOR
+NOAAS_DT$CROPDMG[NOAAS_DT$CROPDMGEXP == "M"] <- NOAAS_DT$CROPDMG[NOAAS_DT$CROPDMGEXP == "M"] * M_FACTOR
+
+# grouping will do the magic
+noaas_evtype_dmg <- NOAAS_DT %>% group_by(EVTYPE) %>% summarise(DAMAGE = sum(PROPDMG+CROPDMG)) %>% arrange(desc(DAMAGE))
+
+noaas_evtype_dmg <- noaas_evtype_dmg[1:10, ]
+
+ggplot(noaas_evtype_dmg, aes(x=EVTYPE, y=DAMAGE)) + geom_bar(stat="identity", aes(fill=EVTYPE)) + scale_x_discrete(labels=c())
+
+
+```
+
+The 10 most hamlful events, regarding economic consequences, are shown in the graph above. 
+
+## Results
+
+1. Based on the analysis Tornados are the most harmful events for population health in the U.S.
+2. Floods, followed by hurricane/typhoon causes the most economic negative consequences in the U.S.
