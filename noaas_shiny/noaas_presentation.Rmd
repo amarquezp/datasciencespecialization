@@ -1,0 +1,135 @@
+---
+title: "NOAA's storms database"
+author: "Antonio Marquez Palacios"
+date: "April 23, 2018"
+output: ioslides_presentation
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(plotly)
+library(dplyr)
+# Read the file
+# setwd("C:/datascience/noaas_shiny")
+FILENAME      <- "repdata%2Fdata%2FStormData.csv.bz2"
+NOAAS_DT      <- read.csv(FILENAME, header = TRUE, sep = ",",  quote = "\"")
+
+# Calculate the total of victims
+NOAAS_DT$TOTAL_VICTIMS <- NOAAS_DT$FATALITIES + NOAAS_DT$INJURIES
+
+# Get the harmful events
+noaas_harmful_evts  <- NOAAS_DT %>% group_by(EVTYPE) %>% summarise(VICTIMS = sum(TOTAL_VICTIMS)) %>% arrange(desc(VICTIMS))
+
+noaas_harmful_evts <- data.frame(lapply(noaas_harmful_evts, as.character), stringsAsFactors = FALSE )
+
+noaas_harmful_evts <- noaas_harmful_evts[1:10,1]
+
+# Set some map options
+
+# map_options <- list(
+#                 scope = 'usa',
+#                 projection = list(type = 'albers usa'),
+#                 showlakes = TRUE,
+#                 lakecolor = toRGB('white')
+#               )
+
+map_options <- list(
+  scope = 'usa',
+  showland = T,
+  landcolor = toRGB("gray90"),
+  showcountries = F,
+  subunitcolor = toRGB("white")
+)
+
+borders <- list(color = toRGB("red"))
+
+```
+
+## Synopsis
+
+Storms and other severe weather events can cause both public health and economic problems for communities and municipalities. Many severe events can result in fatalities, injuries, and property damage, and preventing such outcomes to the extent possible is a key concern.
+
+As part of Data Science Specialization's 'R package' Project and as a continuation of  Reproducible Research Project 2 Assignment, this project will explore the U.S. NOAA's storm database. This database tracks characteristics of major storms and weather events in the United States, including when and where they occur, as well as estimates of any fatalities, injuries, and property damage.
+
+
+## Reference
+
+NOAA's Storm database is available [here](https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2)
+
+For information about how data is collected and description about the variables, please refer [here](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf)
+
+
+```{r warning=FALSE}
+
+    # Get the event type
+    plots <- lapply(noaas_harmful_evts, function(evtype){
+      
+      noaas_evtype_victims <- NOAAS_DT[NOAAS_DT$EVTYPE ==evtype, ] %>% group_by(EVTYPE, STATE) %>% summarise(VICTIMS = sum(TOTAL_VICTIMS)) %>% arrange(desc(VICTIMS))
+      
+      plot_ly(noaas_evtype_victims, z=noaas_evtype_victims$VICTIMS, locations= noaas_evtype_victims$STATE, type='choropleth', locationmode= 'USA-states', color=noaas_evtype_victims$VICTIMS, colors='Blues', marker=list(line= borders)) %>% layout(title = paste('US', evtype, 'Victims'), geo=map_options)
+      
+    })
+    
+  
+#subplot(plots, nrows=length(plots), shareX = TRUE,titleX = FALSE)
+```
+
+## NOAA's Victims per Event Type: TORNADO
+```{r warning=FALSE}
+plots[[1]]
+
+```
+
+## NOAA's Victims per Event Type: EXCESSIVE HEAT
+```{r warning=FALSE}
+plots[[2]]
+
+```
+
+## NOAA's Victims per Event Type: TSTM WIND
+```{r warning=FALSE}
+plots[[3]]
+
+```
+
+## NOAA's Victims per Event Type: FLOOD
+```{r warning=FALSE}
+plots[[4]]
+
+```
+
+## NOAA's Victims per Event Type: LIGHTNING
+```{r warning=FALSE}
+plots[[5]]
+
+```
+
+## NOAA's Victims per Event Type: HEAT
+```{r warning=FALSE}
+plots[[6]]
+
+```
+
+## NOAA's Victims per Event Type: FLASH FLOOD
+```{r warning=FALSE}
+plots[[7]]
+
+```
+
+## NOAA's Victims per Event Type: ICE STORM
+```{r warning=FALSE}
+plots[[8]]
+
+```
+
+## NOAA's Victims per Event Type: THUNDERSTORM WIND
+```{r warning=FALSE}
+plots[[9]]
+
+```
+
+## NOAA's Victims per Event Type: WINTER STORM
+```{r warning=FALSE}
+plots[[10]]
+
+```
