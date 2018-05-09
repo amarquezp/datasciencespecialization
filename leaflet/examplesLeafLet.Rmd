@@ -1,0 +1,78 @@
+---
+title: "leaflet"
+author: "Antonio Marquez Palacios"
+date: "March 29, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## My first map
+```{r, echo=FALSE}
+library(leaflet)
+my_map <- leaflet() %>% addTiles()
+
+my_map
+
+```
+
+
+## Adding many markers
+```{r, echo=FALSE}
+set.seed(12323)
+
+df <- data.frame(lat=runif(20, min=40.2, max=40.3), lng = runif(20, min=-76.6, max=-76.5))
+df %>% leaflet() %>% addTiles() %>% addMarkers()
+
+```
+
+## Making custom markers
+
+```{r, echo=FALSE}
+
+hopkinsIcons = makeIcon(
+  iconUrl    =  "http://brand.jhu.edu/content/uploads/2014/06/university.shield.small_.blue_.png",
+  iconWidth  = 31*215/230, 
+  iconHeight = 31,
+  iconAnchorX= 31*215/230/2,
+  iconAnchorY= 16
+)
+
+hopkinsSites <- c(
+  
+  "<a href='http://www.jhsph.edu/'>East Baltimore Campus </a>",
+  "<a href='https://apply.jhu.edu/visit/homewood/'>Homewood Campus </a>",
+  "<a href='http://wwwhopkinsmedicine.org/john_hopkins_bayview/'>Bayview medical Center </a>",
+  "<a href='http://www.peabody.jhu.edu/'>Peabody Institute </a>",
+  "<a href='http://carey.jhu.edu/'>Carey Business School </a>"
+  
+)
+
+hopkinsLatLong <- data.frame(
+  lat  = c(39.2973166, 39.3288851, 39.290667, 39.2970681, 39.2824806),
+  long = c(-76.5929798, -76.6206598, -76.546983, -76.6150537, -76.6016766)
+)
+
+hopkinsLatLong %>% leaflet() %>% addTiles() %>% addMarkers(icon=hopkinsIcons, popup = hopkinsSites)
+
+```
+
+
+## Mapping clusters
+Sometimes you might have so many points on a map that it doesn't make sense to plot every marker. In these situations
+leaflet allows you to plot clusters of markers using addMarkers(clusterOptions=markerClusterOptions())
+
+```{r, echo=FALSE}
+df <- data.frame(lat=runif(500, min=18.44, max=18.54), lng = runif(500, min=-97.41, max=-97.31))
+df %>% leaflet() %>% addTiles() %>% addMarkers(clusterOptions = markerClusterOptions())
+
+```
+
+## Mapping clusters
+```{r, echo=FALSE}
+df <- data.frame(lat=runif(500, min=18.44, max=18.54), lng = runif(500, min=-97.41, max=-97.31))
+df %>% leaflet() %>% addTiles() %>% addCircleMarkers()
+
+```

@@ -1,0 +1,18 @@
+---
+title: "Tehuacan Leaf Let Map"
+author: "Antonio Marquez Palacios"
+date: "March 29, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## The Map of Tehuacan. A Small town in the center of Mexico, my place of birth
+```{r, echo=FALSE}
+library(leaflet)
+wikiUrl <- "<a href='https://en.wikipedia.org/wiki/Tehuacan'>Tehuacan, Puebla. Mexico </a>"
+df <- data.frame(lat=18.4626765, lng =-97.397543)
+df %>% leaflet() %>% addTiles() %>% addMarkers(popup = wikiUrl)
+```

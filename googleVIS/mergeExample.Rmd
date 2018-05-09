@@ -1,0 +1,15 @@
+```{r gv, results="asis", cache=TRUE}
+
+suppressPackageStartupMessages(library(googleVis))
+
+M <- gvisMotionChart(Fruits, "Fruit", "Year", options=list(witdth=600, height=400 ))
+
+G   <- gvisGeoChart(Exports, locationvar="Country", colorvar="Profit", options = list(width=600, height=400))
+T1  <- gvisTable(Exports, options = list(width=200, height=270))
+M   <- gvisMotionChart(Fruits, "Fruit", "Year", options = list(width=400, height=370))
+GT  <- gvisMerge(G, T1, horizontal = TRUE)
+GTM <- gvisMerge(GT, M, horizontal = TRUE, tableOptions="bgcolor=\"#CCCCCC\" celspacing=10")
+plot(GTM)
+print(M, "chart")
+
+```
