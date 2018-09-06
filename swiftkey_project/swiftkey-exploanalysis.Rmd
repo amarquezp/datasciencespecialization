@@ -1,0 +1,519 @@
+---
+title: "Swiftkey - Exploratory analysis using Text Mining techniques"
+author: "Antonio Marquez Palacios"
+date: "June 23, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+
+```{r include=FALSE}
+
+library(tm)
+library(stringi)
+library(ggplot2)
+library(SnowballC)
+library(wordcloud)
+library(RColorBrewer)
+library(Rgraphviz)
+library(gridExtra)
+library(stylo)
+
+# ------------------- Loading the data -----------------------------
+WORKING.BASE.DIR <- 'C:/datascience/specialization/swiftkey_project/final/en_US/'
+
+# Previously set the WORKING.BASE.DIR = ../datascience/swiftkey/final/en_US
+blogFile    <- file( paste(WORKING.BASE.DIR, "en_US.blogs.txt", sep = ""), open="rb")
+twitterFile <- file( paste(WORKING.BASE.DIR, "en_US.twitter.txt", sep = ""), open="rb")
+newsFile    <- file( paste(WORKING.BASE.DIR, "en_US.news.txt", sep = ""), open="rb")
+
+blogText    <- readLines(blogFile, encoding = "latin1")
+twitterText <- readLines(twitterFile, encoding = "latin1")
+newsText    <- readLines(newsFile, encoding = "latin1")
+
+close(blogFile)
+close(twitterFile)
+close(newsFile)
+
+# Consider words are between spaces, so:
+blogWordCount     <- sum(sapply(strsplit(blogText, " "), length))
+twitterWordCount  <- sum(sapply(strsplit(twitterText, " "), length))
+newsWordCount     <- sum(sapply(strsplit(newsText, " "), length))
+
+# Count the lines per document
+
+blogLinesCount    <- NROW(blogText)
+twitterLinesCount <- NROW(twitterText)
+newsLinesCount    <- NROW(newsText)
+
+aMillion      <- 1000000
+docsLines.df  <- data.frame(c('news', 'blogs', 'twitter'), c(newsLinesCount, blogLinesCount, twitterLinesCount))
+
+docsWord.df   <- data.frame(c('news', 'blogs', 'twitter'), c(newsWordCount, blogWordCount, twitterWordCount))
+
+colnames(docsLines.df)<- c('source', 'count')
+colnames(docsWord.df) <- c('source', 'count')
+
+gWordCnt <- ggplot(docsWord.df, aes(ymin=0)) + geom_rect( aes( xmin=c(1,2,3), xmax=c(2,3,4), ymax=count/aMillion, colour=factor(source), fill=factor(source))) + theme(axis.text.x = element_blank()) + ylab("Word Count x 1000000") + ggtitle("Word Count per Document Source")
+
+gLineCount <- ggplot(docsLines.df, aes(ymin=0)) + geom_rect( aes( xmin=c(1,2,3), xmax=c(2,3,4), ymax=count/aMillion, colour=factor(source), fill=factor(source))) + theme(axis.text.x = element_blank()) + ylab("Lines x 1000000 ") + ggtitle("Lines Count per Document Source")
+
+caption_1 <- "Figure 1. Left: Word Count per Document Source. Right: Lines count per Document Source."
+
+# ------------------- Sampling and cleaning -----------------------------
+# Important to set seed before calling sample()
+set.seed(1841)
+
+# Combine all sources
+allSources.Text   <- c(blogText, twitterText, newsText)
+allLines.count    <- NROW(allSources.Text)
+
+allSources.sample <- sample(allSources.Text, allLines.count * 0.1)
+
+#  Split by sentences divided by commas, store in a vector
+allSources.vector <- unlist(strsplit(allSources.sample, split=", "))
+
+# now, find all position of characters without a corresponding ASCII code, replace them with any string that will look later for removal
+invalidAscii.idx<- grep("[0xDEADC0Wf]", iconv(allSources.vector, "latin1", "ASCII", sub="[0xDEADC0Wf]"))
+
+# Get only those sentences with valid ASCII characters. 
+allSources.vector <- allSources.vector[ - invalidAscii.idx]
+# Then, convert everything back to text
+allSources.Text   <- paste(allSources.vector, collapse = ", ")
+
+# Remove numbers, punctuations, http links:
+allSources.clean  <- gsub('[[:digit:]]+', '', allSources.Text)
+allSources.clean  <- gsub('[[:punct:]]+', '', allSources.clean)
+allSources.clean  <- gsub('http[[:alnum:]]*', '', allSources.clean)
+allSources.clean  <- gsub('([[:alpha:]])\1+', '', allSources.clean)
+
+# Create the corpus from the clean text
+allSources.Corpus <- Corpus(VectorSource(allSources.clean))
+# convert all text to lower case
+allSources.Corpus <- tm_map(allSources.Corpus, tolower)
+# Remove remaining punctuation
+#allSources.Corpus <- tm_map(allSources.Corpus, removePunctuation)
+# Remove the numbers as well
+#allSources.Corpus <- tm_map(allSources.Corpus, removeNumbers)
+
+
+## TO DO:
+urlReplace<-function(x) gsub("(ftp|http)(s?)://.*\\b", "", x)
+allSources.Corpus <- tm_map(allSources.Corpus, urlReplace)
+
+emlReplace<-function(x) gsub("\\b[A-Z a-z 0-9._ - ]*[@](.*?)[.]{1,3} \\b", "", x)
+allSources.Corpus <- tm_map(allSources.Corpus, emlReplace)
+
+twitterReplace<-function(x) gsub("RT |via", "", x)
+allSources.Corpus <- tm_map(allSources.Corpus, twitterReplace)
+
+usernameReplace<-function(x) gsub("[@][a - zA - Z0 - 9_]{1,15}", "", x)
+allSources.Corpus <- tm_map(allSources.Corpus, usernameReplace)
+# 
+allSources.Corpus <- tm_map(allSources.Corpus, stripWhitespace)
+allSources.Corpus <- tm_map(allSources.Corpus, removeWords, stopwords("english"))
+## END TODO
+
+# ------------------- Word Frequencies -----------------------------
+# Required TermDocumentMatrix to generate the WordCloud plot
+# allSources.Corpus <- tm_map(corpus, PlainTextDocument)
+allSources.dtm    <- TermDocumentMatrix(allSources.Corpus)
+allSources.matrix <- as.matrix(allSources.dtm)
+frequencies       <- sort(rowSums(allSources.matrix),decreasing=TRUE)
+allSources.dataf  <- data.frame(word = names(frequencies),freq=frequencies)
+
+# the most 20 frequent words
+head(allSources.dataf, 20)
+
+caption_2  <- "Figure 2. Word Cloud of the most frequent terms. Bigger fonted words are the more frequent, while smaller fonted ones appear less frequent in the documents."
+
+gWordFreq <- ggplot(allSources.dataf[1:20,], aes(x=word, y=freq)) + geom_bar(stat="identity", aes(fill=factor(word))) +
+  geom_text(aes(label=word), vjust=1.6, color="white", size=3.5) + 
+  theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank()) + 
+  ylab("Frequency") + ggtitle("Word frequencies") + 
+  theme_dark() + 
+  theme(legend.position="none")
+
+caption_3  <- "Figure 3. 20 top frequent Word and count of each."
+# ---------------------- ngrams -----------------------------------
+
+# We get all words from the original Corpus. NOTE: Use the VCorpus, not the TermDocument
+# A trick here: use the unlist function to get the words as a character vector, this will
+# help when dealing with 2-gram, 3-gram and so on. Otherwise you will get an error:
+
+# There is not possible to create 2+ ngrams: Error in make.ngrams(allWords, ngram.size = 2) : 
+#  something wrong with your sample: unable to make 2-grams out of 1 element(s)
+# Error during wrapup: cannot open the connection
+
+allWords <- unlist(txt.to.words(allSources.Corpus))
+
+UniGrm.dt <-data.frame(table(make.ngrams(allWords, ngram.size = 1)))
+diGrm.dt  <-data.frame(table(make.ngrams(allWords, ngram.size = 2)))
+triGrm.dt <-data.frame(table(make.ngrams(allWords, ngram.size = 3)))
+
+colnames(UniGrm.dt) <- c("unigram", "Freq")
+colnames(diGrm.dt) <- c("bigram", "Freq")
+colnames(triGrm.dt) <- c("trigram", "Freq")
+#sort the ngrams so we can plot the top most frequent ones:
+
+UniGrm.sorted.dt  <-UniGrm.dt[order(UniGrm.dt$Freq, decreasing = TRUE),]
+DiGrm.sorted.dt   <-diGrm.dt[order(diGrm.dt$Freq, decreasing = TRUE),]
+TriGrm.sorted.dt  <-triGrm.dt[order(triGrm.dt$Freq, decreasing = TRUE),]
+
+gUnigram <- ggplot (UniGrm.sorted.dt[1:20,], aes(x = reorder(unigram, -Freq), y= Freq )) + 
+  geom_bar( stat = "Identity" , fill = "darkblue" ) +  
+  geom_text( aes (label = Freq ) , vjust = - 0.20, size = 3 ) +
+  xlab( "UniGram List" ) +
+  ylab( "Frequency" ) +
+  theme ( axis.text.x = element_text ( angle = 45 , hjust = 1 ) )
+
+caption_4 <- "Figure 4. Unigram Plot."
+
+gDiGram <- ggplot (DiGrm.sorted.dt[1:20,], aes(x = reorder(bigram, -Freq), y= Freq )) + 
+  geom_bar( stat = "Identity" , fill = "darkblue" ) +  
+  geom_text( aes (label = Freq ) , vjust = - 0.20, size = 3 ) +
+  xlab( "DiGram List" ) +
+  ylab( "Frequency" ) +
+  theme ( axis.text.x = element_text ( angle = 45 , hjust = 1 ) )
+
+caption_5 <- "Figure 5. Digram Plot."
+
+gTrigram <- ggplot (TriGrm.sorted.dt[1:20,], aes(x = reorder(trigram, -Freq), y= Freq )) + 
+  geom_bar( stat = "Identity" , fill = "darkblue" ) +  
+  geom_text( aes (label = Freq ) , vjust = - 0.20, size = 3 ) +
+  xlab( "TriGram List" ) +
+  ylab( "Frequency" ) +
+  theme ( axis.text.x = element_text ( angle = 45 , hjust = 1 ) )
+
+caption_6 <- "Figure 6. Trigram Plot."
+caption_7 <- "Figure 7. Digram Word Cloud."
+caption_8 <- "Figure 8. Trigram Word Cloud."
+
+```
+
+## Executive Summary
+
+Text mining has become a very important discipline for multiple areas in Computer Science, being Natural Language processing the top most research area of involvement. 
+Across this document, it is exposed a simple but powerful way to explore text from the statistics and data science perspective. 
+
+Section *Loading the data* shows how read the text files (plain text corpus)  
+Section *Sampling and cleaning* describes a process to sample data, from a subset of lines in the document. It also describes a process on how to clean the sampled data, considering ASCII characters as valid, and removing special characters, http links, punctuations and numbers. Once cleaned, a plain text Corpus is created.  
+Section *Word Frequencies* calculates the 20 top most used words from the Corpus
+Section *ngram* shows a way to build uni, bi and tri gram models based on the plain text Corpus.  
+Finally, the report ends suggesting a prediction model and suggest a strategy for a real application.  
+
+*Appendix A* includes the complete list of libraries utilized during this report.  
+*Appendis B* includes the complete code. Comments point some issues I faced and how I resolved. Also they document low level solution logic.
+
+## Loading the data
+
+Data set consists of a zip file that can be downloaded from https://d396qusza40orc.cloudfront.net/dsscapstone/dataset/Coursera-SwiftKey.zip
+
+It consists of plain text files with different sources: blog entries, twitter posts and news. Files for 4 different languages are included, as
+
+- Deutsch
+- English
+- Finnish
+- Russian
+
+Across this report, only those files in English will be processed, this to ease and shorten the exercise.
+
+Loading the data implies the following steps:  
+1. Open the file  
+2. Read file content using the function readLines from base R  
+3. Close the file  
+
+For every source/document, a word count and lines count operations were performed, and the results showed in the following figure. NOTE: Due to the big size of the sources, this tasks may take some time to complete. 
+
+
+```{r echo=FALSE, fig.cap=caption_1, fig.align="center", fig.show='hold', fig.width=8}
+
+grid.arrange(gWordCnt, gLineCount, nrow=1)
+
+```
+
+
+## Sampling and cleaning
+
+Sampling involves extracting a random subset of information for a given set. In this case the approach is to sample based on the number of lines of text. To do that, the join of all the three documents was performed. Once sampled, all those characters/words with not valid ASCII symbols were identified and removed.   
+  
+Cleaning the text is a capston task when dealing with text mining challenges; it establishes a starting point at which any text (corpus) can be recognized as ready to any statistical processing. Here, the approach is to use basic text search/replace operations to remove: punctuation marks, numbers, English Stop words, email addresses, http links, etc. 
+
+After sampling anc cleaning tasks are complete, it is convenient to continue on the way for data exploration.
+
+## Word Frequencies
+
+Important task on Text mining is to identify those words which are more frequent in a given Corpus. This establishes the bases for a Dictionary Lookup Operator, taxonomy creation, stopwords identification, sentiment analysis and others.  
+
+The frequent words model is based on the sampled and clean data set from the previous section. The process builds a TermDocumentMatrix Corpus to build a sorted matrix of the top most frequent terms (words). This can be viewed in the figure 2. Figure 3 plots the 20 top most words.
+
+``` {r echo=FALSE , warning=FALSE, fig.cap=caption_2, fig.align="center", fig.hold='hold'}
+wordcloud(words = allSources.dataf$word, freq = allSources.dataf$freq, min.freq = 1, max.words=200, random.order=FALSE, rot.per=0.35, colors=brewer.pal(8, "Dark2"))
+```
+
+``` {r echo=FALSE , warning=FALSE, fig.cap=caption_3, fig.align="center", fig.hold='hold'}
+gWordFreq
+```
+
+## ngrams
+
+As stated in Wikipedia [n-gram:](https://en.wikipedia.org/wiki/N-gram) *"In the fields of computational linguistics and probability, an n-gram is a contiguous sequence of n items from a given sample of text or speech. The items can be phonemes, syllables, letters, words or base pairs according to the application. The n-grams typically are collected from a text or speech corpus. When the items are words, n-grams may also be called shingles"*  
+
+n-gram analysys requires to separate (vectorize) all the words within the Corpus and then apply the n-gram generation algorithm to build the n-gram objects. Though high "n" values can be considered, for convenient purposes, limited resources and efficiendy, small values are considered, said 
+
+
+$$n \in {1,2,3}$$
+The following figures shows unigram, digram and trigram plots
+
+```{r echo=FALSE , warning=FALSE, fig.cap=caption_4, fig.align="center"}
+# Plot the Unigram:
+gUnigram
+```
+
+```{r echo=FALSE , warning=FALSE, fig.cap=caption_5, fig.align="center"}
+
+# Plot the DiGram
+gDiGram
+```
+
+```{r echo=FALSE , warning=FALSE, fig.cap=caption_7, fig.align="center"}
+
+wordcloud(words=DiGrm.sorted.dt$bigram, freq=DiGrm.sorted.dt$Freq, min.freq=1, max.words=500, random.order=FALSE, rot.per=0.35, colors=brewer.pal(8, "Dark2"))
+```
+
+```{r echo=FALSE , warning=FALSE, fig.cap=caption_6, fig.align="center"}
+
+# Plot the Trigram
+gTrigram
+```
+
+```{r echo=FALSE , warning=FALSE, fig.cap=caption_8, fig.align="center"}
+
+wordcloud(words=TriGrm.sorted.dt$trigram, freq=TriGrm.sorted.dt$Freq, min.freq=1, max.words=500, random.order=FALSE, rot.per=0.35, colors=brewer.pal(8, "Dark2"))
+```
+
+## Conclusion
+
+Exploratory data analysis can be extended when working with unstructured data, as text. In this document it was shown a very basic but powerful way to do exploration on three different plain text documents. Exploration showed that the English words "will", "just", "like" and "said" as the top frequent words across the sources. Unigram analysis confirmed the same
+DiGram and Trigram explorations go beyond, and demonstrate how words are used together: "right now", "good luck", "happy birthday" are common digrams while "happy new year", "happy mothers day" and "cant wait see" lead the trigram plot.  
+  
+The methods and data structures used across this report, can be used for prediction modeling tasks required. For example, using the n-gram information, predictive model can be used for word completion/suggestion in a chat application. Performance must be considered for this, since the text processing is always an expensive computational task.
+
+
+## Appendix A: Session Info
+
+```{r echo=TRUE}
+sessionInfo()
+```
+
+## Appendix B: Complete code to create the report
+
+Full code that supported report generation. Take a look to inline comments, they explain some of the decisions taken during the coding, provide low level documentationand explain some issues I faced and how I solved.  
+Happy R-coding :)
+
+```{r echo=TRUE, eval=FALSE}
+
+
+library(tm)
+library(stringi)
+library(ggplot2)
+library(SnowballC)
+library(wordcloud)
+library(RColorBrewer)
+library(Rgraphviz)
+library(gridExtra)
+library(stylo)
+
+# ------------------- Loading the data -----------------------------
+WORKING.BASE.DIR <- 'C:/datascience/specialization/swiftkey_project/final/en_US/'
+
+# Previously set the WORKING.BASE.DIR = ../datascience/swiftkey/final/en_US
+blogFile    <- file( paste(WORKING.BASE.DIR, "en_US.blogs.txt", sep = ""), open="rb")
+twitterFile <- file( paste(WORKING.BASE.DIR, "en_US.twitter.txt", sep = ""), open="rb")
+newsFile    <- file( paste(WORKING.BASE.DIR, "en_US.news.txt", sep = ""), open="rb")
+
+blogText    <- readLines(blogFile, encoding = "latin1")
+twitterText <- readLines(twitterFile, encoding = "latin1")
+newsText    <- readLines(newsFile, encoding = "latin1")
+
+close(blogFile)
+close(twitterFile)
+close(newsFile)
+
+# Consider words are between spaces, so:
+blogWordCount     <- sum(sapply(strsplit(blogText, " "), length))
+twitterWordCount  <- sum(sapply(strsplit(twitterText, " "), length))
+newsWordCount     <- sum(sapply(strsplit(newsText, " "), length))
+
+# Count the lines per document
+
+blogLinesCount    <- NROW(blogText)
+twitterLinesCount <- NROW(twitterText)
+newsLinesCount    <- NROW(newsText)
+
+aMillion      <- 1000000
+docsLines.df  <- data.frame(c('news', 'blogs', 'twitter'), c(newsLinesCount, blogLinesCount, twitterLinesCount))
+
+docsWord.df   <- data.frame(c('news', 'blogs', 'twitter'), c(newsWordCount, blogWordCount, twitterWordCount))
+
+colnames(docsLines.df)<- c('source', 'count')
+colnames(docsWord.df) <- c('source', 'count')
+
+gWordCnt <- ggplot(docsWord.df, aes(ymin=0)) + geom_rect( aes( xmin=c(1,2,3), xmax=c(2,3,4), ymax=count/aMillion, colour=factor(source), fill=factor(source))) + theme(axis.text.x = element_blank()) + ylab("Word Count x 1000000") + ggtitle("Word Count per Document Source")
+
+gLineCount <- ggplot(docsLines.df, aes(ymin=0)) + geom_rect( aes( xmin=c(1,2,3), xmax=c(2,3,4), ymax=count/aMillion, colour=factor(source), fill=factor(source))) + theme(axis.text.x = element_blank()) + ylab("Lines x 1000000 ") + ggtitle("Lines Count per Document Source")
+
+caption_1 <- "Figure 1. Left: Word Count per Document Source. Right: Lines count per Document Source."
+
+# ------------------- Sampling and cleaning -----------------------------
+# Important to set seed before calling sample()
+set.seed(1841)
+
+# Combine all sources
+allSources.Text   <- c(blogText, twitterText, newsText)
+allLines.count    <- NROW(allSources.Text)
+
+allSources.sample <- sample(allSources.Text, allLines.count * 0.1)
+
+#  Split by sentences divided by commas, store in a vector
+allSources.vector <- unlist(strsplit(allSources.sample, split=", "))
+
+# now, find all position of characters without a corresponding ASCII code, replace them with any string that will look later for removal
+invalidAscii.idx<- grep("[0xDEADC0Wf]", iconv(allSources.vector, "latin1", "ASCII", sub="[0xDEADC0Wf]"))
+
+# Get only those sentences with valid ASCII characters. 
+allSources.vector <- allSources.vector[ - invalidAscii.idx]
+# Then, convert everything back to text
+allSources.Text   <- paste(allSources.vector, collapse = ", ")
+
+# Remove numbers, punctuations, http links:
+allSources.clean  <- gsub('[[:digit:]]+', '', allSources.Text)
+allSources.clean  <- gsub('[[:punct:]]+', '', allSources.clean)
+allSources.clean  <- gsub('http[[:alnum:]]*', '', allSources.clean)
+allSources.clean  <- gsub('([[:alpha:]])\1+', '', allSources.clean)
+
+# Create the corpus from the clean text
+allSources.Corpus <- Corpus(VectorSource(allSources.clean))
+# convert all text to lower case
+allSources.Corpus <- tm_map(allSources.Corpus, tolower)
+# Remove remaining punctuation
+#allSources.Corpus <- tm_map(allSources.Corpus, removePunctuation)
+# Remove the numbers as well
+#allSources.Corpus <- tm_map(allSources.Corpus, removeNumbers)
+
+
+## TO DO:
+urlReplace<-function(x) gsub("(ftp|http)(s?)://.*\\b", "", x)
+allSources.Corpus <- tm_map(allSources.Corpus, urlReplace)
+
+emlReplace<-function(x) gsub("\\b[A-Z a-z 0-9._ - ]*[@](.*?)[.]{1,3} \\b", "", x)
+allSources.Corpus <- tm_map(allSources.Corpus, emlReplace)
+
+twitterReplace<-function(x) gsub("RT |via", "", x)
+allSources.Corpus <- tm_map(allSources.Corpus, twitterReplace)
+
+usernameReplace<-function(x) gsub("[@][a - zA - Z0 - 9_]{1,15}", "", x)
+allSources.Corpus <- tm_map(allSources.Corpus, usernameReplace)
+# 
+allSources.Corpus <- tm_map(allSources.Corpus, stripWhitespace)
+allSources.Corpus <- tm_map(allSources.Corpus, removeWords, stopwords("english"))
+## END TODO
+
+# ------------------- Word Frequencies -----------------------------
+# Required TermDocumentMatrix to generate the WordCloud plot
+# allSources.Corpus <- tm_map(corpus, PlainTextDocument)
+allSources.dtm    <- TermDocumentMatrix(allSources.Corpus)
+allSources.matrix <- as.matrix(allSources.dtm)
+frequencies       <- sort(rowSums(allSources.matrix),decreasing=TRUE)
+allSources.dataf  <- data.frame(word = names(frequencies),freq=frequencies)
+
+# the most 20 frequent words
+head(allSources.dataf, 20)
+
+caption_2  <- "Figure 2. Word Cloud of the most frequent terms. Bigger fonted words are the more frequent, while smaller fonted ones appear less frequent in the documents."
+
+gWordFreq <- ggplot(allSources.dataf[1:20,], aes(x=word, y=freq)) + geom_bar(stat="identity", aes(fill=factor(word))) +
+  geom_text(aes(label=word), vjust=1.6, color="white", size=3.5) + 
+  theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank()) + 
+  ylab("Frequency") + ggtitle("Word frequencies") + 
+  theme_dark() + 
+  theme(legend.position="none")
+
+caption_3  <- "Figure 3. 20 top frequent Word and count of each."
+# ---------------------- ngrams -----------------------------------
+
+# We get all words from the original Corpus. NOTE: Use the VCorpus, not the TermDocument
+# A trick here: use the unlist function to get the words as a character vector, this will
+# help when dealing with 2-gram, 3-gram and so on. Otherwise you will get an error:
+
+# There is not possible to create 2+ ngrams: Error in make.ngrams(allWords, ngram.size = 2) : 
+#  something wrong with your sample: unable to make 2-grams out of 1 element(s)
+# Error during wrapup: cannot open the connection
+
+allWords <- unlist(txt.to.words(allSources.Corpus))
+
+UniGrm.dt <-data.frame(table(make.ngrams(allWords, ngram.size = 1)))
+diGrm.dt  <-data.frame(table(make.ngrams(allWords, ngram.size = 2)))
+triGrm.dt <-data.frame(table(make.ngrams(allWords, ngram.size = 3)))
+
+colnames(UniGrm.dt) <- c("unigram", "Freq")
+colnames(diGrm.dt) <- c("bigram", "Freq")
+colnames(triGrm.dt) <- c("trigram", "Freq")
+#sort the ngrams so we can plot the top most frequent ones:
+
+UniGrm.sorted.dt  <-UniGrm.dt[order(UniGrm.dt$Freq, decreasing = TRUE),]
+DiGrm.sorted.dt   <-diGrm.dt[order(diGrm.dt$Freq, decreasing = TRUE),]
+TriGrm.sorted.dt  <-triGrm.dt[order(triGrm.dt$Freq, decreasing = TRUE),]
+
+gUnigram <- ggplot (UniGrm.sorted.dt[1:20,], aes(x = reorder(unigram, -Freq), y= Freq )) + 
+  geom_bar( stat = "Identity" , fill = "darkblue" ) +  
+  geom_text( aes (label = Freq ) , vjust = - 0.20, size = 3 ) +
+  xlab( "UniGram List" ) +
+  ylab( "Frequency" ) +
+  theme ( axis.text.x = element_text ( angle = 45 , hjust = 1 ) )
+
+caption_4 <- "Figure 4. Unigram Plot."
+
+gDiGram <- ggplot (DiGrm.sorted.dt[1:20,], aes(x = reorder(bigram, -Freq), y= Freq )) + 
+  geom_bar( stat = "Identity" , fill = "darkblue" ) +  
+  geom_text( aes (label = Freq ) , vjust = - 0.20, size = 3 ) +
+  xlab( "DiGram List" ) +
+  ylab( "Frequency" ) +
+  theme ( axis.text.x = element_text ( angle = 45 , hjust = 1 ) )
+
+caption_5 <- "Figure 5. Digram Plot."
+
+gTrigram <- ggplot (TriGrm.sorted.dt[1:20,], aes(x = reorder(trigram, -Freq), y= Freq )) + 
+  geom_bar( stat = "Identity" , fill = "darkblue" ) +  
+  geom_text( aes (label = Freq ) , vjust = - 0.20, size = 3 ) +
+  xlab( "TriGram List" ) +
+  ylab( "Frequency" ) +
+  theme ( axis.text.x = element_text ( angle = 45 , hjust = 1 ) )
+
+caption_6 <- "Figure 6. Trigram Plot."
+caption_7 <- "Figure 7. Digram Word Cloud."
+caption_8 <- "Figure 8. Trigram Word Cloud."
+```
+
+## References
+
+[Text Mining in R: A Tutorial](https://www.springboard.com/blog/text-mining-in-r/)  
+[TM Package documentation - CRAN ](https://cran.r-project.org/web/packages/tm/vignettes/tm.pdf)  
+[Statistical Journal - Text Mining Infrastructure  in](https://www.jstatsoft.org/article/view/v025i05)  
+[A gentle introduction to text mining using R](https://eight2late.wordpress.com/2015/05/27/a-gentle-introduction-to-text-mining-using-r/)  
+[n-gram](https://en.wikipedia.org/wiki/N-gram)  
+[Text mining and word cloud fundamentals in R : 5 simple steps you should know](http://www.sthda.com/english/wiki/text-mining-and-word-cloud-fundamentals-in-r-5-simple-steps-you-should-know)  
+[tm Package FAQ](http://tm.r-forge.r-project.org/faq.html)  
+[Bioconductor Rgraphviz](https://www.bioconductor.org/packages/release/bioc/html/Rgraphviz.html)  
+  
+  
+
+

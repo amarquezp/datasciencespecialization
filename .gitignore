@@ -6,5 +6,7 @@
 **/*.zip
 **/*.bz2
 **/.R*
+**/*.xls*
+swiftkey_project/final/*
 
 

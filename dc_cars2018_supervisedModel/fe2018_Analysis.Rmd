@@ -1,0 +1,42 @@
+---
+title: "DC Fuel Analysis"
+author: "Antonio Marquez Palacios"
+date: "May 25, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(xlsx)
+```
+
+## R Markdown 3,4,6,7,8,12,21,22,25,26,29,30, 34,68,69,115
+
+Supervised training from Data Camp
+
+```{r cars}
+FILENAME <- '2018 FE Guide for DOE for posting 5-8-2018-release dates before 5-9-2018-no-sales-5-4-2018public.xslx'
+
+FE.CARS2018.DT <- read.xlsx(FILENAME, sheetName="FEguide", startRow=1, header=TRUE, row.names=NULL)
+
+# (2) Mfr Name 	(3) Division	(3)Carline	(3)Verify Mfr Cd	Index (Model Type Index)	Eng Displ	# Cyl
+
+cars2018 <- FE.CARS2018.DT[, c(3,4,6,7,8,12,21,22,25,26,29,30, 34,68,69,115)]
+cars2018$Model <- with(cars2018, paste(Division, Carline))
+cars2018$Division <- NULL
+cars2018$Carline <- NULL
+names(cars2018) <- c('Model', 'Model Index', 'Displacement', 'Cylinders'..)
+
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

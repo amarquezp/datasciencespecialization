@@ -1,0 +1,83 @@
+---
+title: "ReferencesExample"
+author: "Antonio Marquez Palacios"
+date: "June 28, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+
+```
+
+```{r echo=TRUE, warning=FALSE, eval=TRUE}
+
+library(tm)
+library(stringi)
+library(ggplot2)
+library(SnowballC)
+library(wordcloud)
+library(RColorBrewer)
+library(Rgraphviz)
+library(gridExtra)
+
+
+WORKING.BASE.DIR <- 'C:/datascience/specialization/swiftkey_project/final/en_US/'
+
+# Previously set the WORKING.BASE.DIR = ../datascience/swiftkey/final/en_US
+blogFile    <- file( paste(WORKING.BASE.DIR, "en_US.blogs.txt", sep = ""), open="rb")
+blogText    <- readLines(blogFile, encoding = "latin1")
+close(blogFile)
+# Consider words are between spaces, so:
+blogWordCount     <- sum(sapply(strsplit(blogText, " "), length))
+
+blogLinesCount    <- NROW(blogText)
+aMillion      <- 1000000
+docsLines.df  <- data.frame(c('blogs', 'blogs/2'), c(blogLinesCount, blogLinesCount/2))
+
+docsWord.df   <- data.frame(c('blogs', 'blogs/2'), c(blogWordCount, blogWordCount/2))
+
+colnames(docsLines.df)<- c('source', 'count')
+colnames(docsWord.df) <- c('source', 'count')
+
+gWordCnt <- ggplot(docsWord.df, aes(ymin=0)) + geom_rect( aes( xmin=c(1,2), xmax=c(2,3), ymax=count/aMillion, fill=c('darkstategray4', 'dodgeblue4'))) + theme(axis.text.x = element_blank()) + ylab("Word Count x 1000000") + ggtitle("Word Count per Document Source")
+
+gLineCount <- ggplot(docsLines.df, aes(ymin=0)) + geom_rect( aes( xmin=c(1,2), xmax=c(2,3), ymax=count/aMillion, fill=c('darkstategray4', 'seashell'))) + theme(axis.text.x = element_blank()) + ylab("Lines x 1000000 ") + ggtitle("Lines Count per Document Source")
+
+gLineCount <- ggplot(docsLines.df, aes(factor(source))) + geom_bar(fill="darkblue") +  ylab("Lines x 1000000 ") + xlab("Document Source") + ggtitle("Lines Count per Document Source")
+
+grid.arrange(gWordCnt, gLineCount, nrow=1)
+
+```
+
+
+## Executive Summary
+
+Text mining has become a very important discipline for multiple areas in Computer Science, being Natural Language processing the top most research area of involvement. 
+Across this document, it is exposed a simple but powerful way to explore text from the statistics and data science perspective. The report shows from very basic text loading and cleaning, word and lines count, graphics and plots about word frequencies and, finally, ends an n-gram analysis. 
+
+
+## Loading and cleaning the data
+
+Data set consists of a zip file that can be downloaded from https://d396qusza40orc.cloudfront.net/dsscapstone/dataset/Coursera-SwiftKey.zip
+
+It consists of plain text files with different sources: blog entries, twitter posts and news. Files for 4 different languages are included, as
+
+- Deutsch
+- English
+- Finnish
+- Russian
+
+Across this report, only those files in English will be processed, this to ease and shorten the exercise.
+
+## References
+
+[Text Mining in R: A Tutorial](https://www.springboard.com/blog/text-mining-in-r/)  
+[TM Package documentation - CRAN ](https://cran.r-project.org/web/packages/tm/vignettes/tm.pdf)  [Statistical Journal - Text Mining Infrastructure in  ](https://www.jstatsoft.org/article/view/v025i05)  
+[A gentle introduction to text mining using R](https://eight2late.wordpress.com/2015/05/27/a-gentle-introduction-to-text-mining-using-r/)  
+[n-gram](https://en.wikipedia.org/wiki/N-gram)  
+[Text mining and word cloud fundamentals in R : 5 simple steps you should know](http://www.sthda.com/english/wiki/text-mining-and-word-cloud-fundamentals-in-r-5-simple-steps-you-should-know)  
+[tm Package FAQ](http://tm.r-forge.r-project.org/faq.html)  
+[Bioconductor Rgraphviz](https://www.bioconductor.org/packages/release/bioc/html/Rgraphviz.html)  
+

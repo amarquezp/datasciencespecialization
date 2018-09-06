@@ -1,0 +1,178 @@
+---
+title: "TextMining-Swiftkey"
+author: "Antonio Marquez Palacios"
+date: "June 11, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+#library(tm)
+
+```
+
+## Load the data
+
+``` {r echo=FALSE}
+# Set current location to working dir:
+#WORKING.BASE.DIR <- 'C:/datascience/specialization/swiftkey_project/final/en_US'
+#enUs.source      <- DirSource(WORKING.BASE.DIR)
+#enUs.corp        <- Corpus(enUs.source, readerControl = list(language="en"))
+
+```
+
+
+
+## Questions to Consider?
+
+#### Q: What do the data look like?.
+A: Data is packed using zip format as Coursera-SwiftKey.zip. Inside can be found the following structure:
+  - final/: Folder containing all the text files, separated by language and location
+  - final/de_DE: folder with text files for German language.
+  - final/en_US: folder with text files for American English language.
+  - final/fi_FI: folder with text files for Finnish language.
+  - final/ru_RU: folder with text files for Russian language.
+  
+Within each folder, there are 3 text files named with the following nomenclature:
+  
+    language.source.txt
+    
+where language in {de_DE, en_US, fi_FI, ru_RU}, source in {blogs, news, twitter}
+
+
+#### Q: Where do the data come from?
+A: The corpora are collected from publicly available sources by a web crawler. The crawler checks for language, so as to mainly get texts consisting of the desired language.
+
+Each entry is tagged with it's date of publication. Where user comments are included they will be tagged with the date of the main entry.
+
+Each entry is tagged with the type of entry, based on the type of website it is collected from (e.g. newspaper or personal blog) If possible, each entry is tagged with one or more subjects based on the title or keywords of the entry (e.g. if the entry comes from the sports section of a newspaper it will be tagged with "sports" subject).In many cases it's not feasible to tag the entries (for example, it's not really practical to tag each individual Twitter entry, though I've got some ideas which might be implemented in the future) or no subject is found by the automated process, in which case the entry is tagged with a '0'.
+
+To save space, the subject and type is given as a numerical code.
+
+Once the raw corpus has been collected, it is parsed further, to remove duplicate entries and split into individual lines. Approximately 50% of each entry is then deleted
+
+#### Q: Can you think of any other data sources that might help you in this project?
+A: Yes, audio and video
+
+
+#### Q: What are the common steps in natural language processing?
+A: It depends a lot on the approach, according to Wikipedia https://en.wikipedia.org/wiki/Natural-language_processing
+
+#### Syntax Analysis
+
+##### Lemmatization. The process of grouping together the inflected forms of a word so they can be analysed as a single item, identified by the word's lemma, or dictionary form.
+##### Morphological Segmentation. The process to separate words in the smallest grammatical unit in a language (morpheme).
+##### Part-of-speech tagging.
+##### Grammatical Analysys (Parsing).
+##### Sentence breaking. Using grammatical boudaries (periods, puntuation marks, etc...)
+##### Stemming. Reducing inflected words to their base root form (word stem).
+##### Word segmentation. Separate text into individual words. 
+##### Terminology extraction. Given a corpus (set of documents), extract relevant terms
+
+#### Semantics
+##### Lexical semantics. Comprehends classification and relationship of lexical items.
+##### Machine translation. Automatic translation from human languages.
+##### NER (Named entity recognition). The process to determine proper names (entities) for a given text.
+##### Natural language generation. Computer information translated into human readable language.
+##### Natural language understanding. 
+##### OCR (Optical Character Recognition). Process to identify text from visual sources
+##### Question answering. Automatic answers to human questions. 
+##### Relationship extraction. Process to determine relationship between extracted entities on a given text
+##### Sentiment Analysis. Process to determine polarity (sentiments) about specific objects.
+##### Topic segmentation.  
+##### Word sense disambiguation. Contextualize a word to give a meaniniful sense.
+
+
+#### Discourse
+##### Automatic summarization. 
+##### Coreference resolution. Process to identify multiple words refering the same object
+##### Discourse analysis. 
+
+#### Speech
+##### Speech recognition
+##### Speech segmentation
+##### Text to speech
+
+#### Q: What are some common issues in the analysis of text data?
+A: One of the most difficult issues is the variety of human languages and, the way they structure the information. Spanish language can structure a sentence in a different way than German, both with the same context and sense.
+Other important issue within speech recognition is how the information can be expressed in totally diferent words, within the same human language, depending on academic grade, economic and social status, region, context etc.
+Other significan issue is how languages evolve, incorporating technicalities, other words for dominant languages. 
+Typos and offensive words may be processed accordingly, but introduce one more difficult layer.
+ 
+#### Q: What is the relationship between NLP and the concepts you have learned in the Specialization?
+A: Following an statistical approach to solve NLP, requires significant knowledge on how to understand and the data:
+
+- Getting and Cleaning data: How the data will be captured and processed to remove invalid entries. In the case of NLP...
+
+- Machine Learning. Based on statistical models, develop a machine learning algorithm to do NLP
+
+
+## QUIZ 1: 
+
+### 3. What is the length of the longest line seen in any of the three en_US data sets?
+```{ r echo=TRUE}
+
+idx <- which.max(lapply(enUs.corp[[1]]$content, nchar))
+nchar(enUs.corp[[1]]$content[idx])
+
+idx <- which.max(lapply(enUs.corp[[2]]$content, nchar))
+nchar(enUs.corp[[1]]$content[idx])
+
+idx <- which.max(lapply(sk.enUs.vcorp[[3]]$content, nchar))
+nchar(enUs.corp[[3]]$content[idx])
+
+```
+
+
+### 4. In the en_US twitter data set, if you divide the number of lines where the word "love" (all lowercase) occurs by the number of lines the word "hate" (all lowercase) occurs, about what do you get?
+```{r echo=TRUE}
+
+countLinesWithToken <- function(filePath, token_str){
+  
+  
+  numlines <- length(grep(token_str,readLines(filePath)))
+  numlines
+
+}
+
+loveCount <- countLinesWithToken(filePath, "\\blove\\b")
+hateCount <- countLinesWithToken(filePath, "\\bhate\\b")
+
+```
+
+### 5. The one tweet in the en_US twitter data set that matches the word "biostats" says what?
+
+### 6. How many tweets have the exact characters "A computer once beat me at chess, but it was no match for me at kickboxing". (I.e. the line matches those characters exactly.)
+```{r }
+(grep("\\bA computer once beat me at chess, but it was no match for me at kickboxing\\b",readLines(filePath)))
+```
+
+R: 3
+
+
+## Milestone Report: Exploratory Analysis
+
+```{r echo = TRUE}
+
+inspect(enUs.corp)
+
+
+
+
+```
+
+## References
+
+https://www.springboard.com/blog/text-mining-in-r/
+https://cran.r-project.org/web/packages/tm/vignettes/tm.pdf
+https://www.jstatsoft.org/article/view/v025i05
+https://eight2late.wordpress.com/2015/05/27/a-gentle-introduction-to-text-mining-using-r/
+https://en.wikipedia.org/wiki/N-gram
+https://www.cs.uni-potsdam.de/ml/publications/emnlp2005.pdf
+
+https://en.wikipedia.org/wiki/Markov_model
+https://en.wikipedia.org/wiki/Viterbi_algorithm
+http://www.phontron.com/slides/nlp-programming-en-02-bigramlm.pdf
+
+
